@@ -1,8 +1,8 @@
-FROM php:8.2-fpm
+FROM php:8.2-apache
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git unzip libzip-dev zlib1g-dev libonig-dev libpq-dev curl \
+    git unzip libzip-dev zlib1g-dev libonig-dev libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
@@ -10,6 +10,9 @@ RUN docker-php-ext-install \
     pdo pdo_mysql pdo_pgsql \
     zip mbstring \
     && docker-php-ext-enable pdo pdo_mysql pdo_pgsql
+
+# Enable Apache modules
+RUN a2enmod rewrite
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -25,6 +28,7 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-di
 
 # Set permissions
 RUN mkdir -p bootstrap/cache storage \
+    && chown -R www-data:www-data /var/www/html \
     && chmod -R 775 bootstrap/cache storage
 
 # Generate app key
@@ -33,14 +37,13 @@ RUN php artisan key:generate || true
 # Create necessary directories
 RUN mkdir -p bootstrap/cache && chmod -R 775 bootstrap/cache
 
-# Install nginx
-RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
-
-# Copy nginx config
-RUN echo 'server {\n    listen 8000;\n    server_name _;\n    root /var/www/html/public;\n    index index.php;\n    location / {\n        try_files $uri $uri/ /index.php?$query_string;\n    }\n    location ~ \\.php$ {\n        fastcgi_pass 127.0.0.1:9000;\n        fastcgi_index index.php;\n        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;\n        include fastcgi_params;\n    }\n}' > /etc/nginx/sites-available/default
+# Configure Apache to serve from public directory
+RUN rm /etc/apache2/sites-enabled/000-default.conf && \
+    echo '<VirtualHost *:80>\n    ServerName _\n    DocumentRoot /var/www/html/public\n    <Directory /var/www/html/public>\n        AllowOverride All\n        Require all granted\n    </Directory>\n</VirtualHost>' > /etc/apache2/sites-available/000-default.conf && \
+    a2ensite 000-default
 
 # Expose port
-EXPOSE 8000
+EXPOSE 80
 
-# Start PHP-FPM and nginx
-CMD php-fpm -D && nginx -g "daemon off;"
+# Start Apache
+CMD ["apache2-foreground"]
