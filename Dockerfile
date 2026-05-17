@@ -37,11 +37,12 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # Create necessary directories for supervisor
 RUN mkdir -p /var/log/supervisor
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Expose port
 EXPOSE 80
 
-# Generate app key on startup
-RUN php artisan key:generate --force || true
-
-# Start services with supervisor
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Start services via entrypoint
+ENTRYPOINT ["/docker-entrypoint.sh"]
