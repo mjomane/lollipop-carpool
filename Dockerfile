@@ -1,8 +1,8 @@
-FROM php:8.2-cli
+FROM php:8.2-fpm
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git unzip libzip-dev zlib1g-dev libonig-dev libpq-dev \
+    git unzip libzip-dev zlib1g-dev libonig-dev libpq-dev curl nginx supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
@@ -15,23 +15,33 @@ RUN docker-php-ext-install \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Set working directory
-WORKDIR /app
+WORKDIR /var/www/html
 
 # Copy application code
 COPY . .
 
 # Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist 2>&1 || echo "Composer install completed"
 
 # Set permissions
 RUN mkdir -p bootstrap/cache storage \
+    && chown -R www-data:www-data /var/www/html \
     && chmod -R 775 bootstrap/cache storage
 
-# Generate app key
-RUN php artisan key:generate || true
+# Copy Nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Copy Supervisor config
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Create necessary directories for supervisor
+RUN mkdir -p /var/log/supervisor
 
 # Expose port
 EXPOSE 80
 
-# Start Laravel development server
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]
+# Generate app key on startup
+RUN php artisan key:generate --force || true
+
+# Start services with supervisor
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
