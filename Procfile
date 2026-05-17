@@ -1,1 +1,1 @@
-web: mkdir -p bootstrap/cache && chmod -R 775 bootstrap/cache && php artisan serve --host=0.0.0.0 --port=$PORT
+web: composer install && mkdir -p bootstrap/cache && chmod -R 775 bootstrap/cache && php artisan key:generate && php artisan serve --host=0.0.0.0 --port=$PORT
