@@ -3,7 +3,7 @@
   "description": "Laravel backend for a kid-safe carpooling app",
   "type": "project",
   "require": {
-    "php": "^8.1",
+    "php": "^8.2",
     "laravel/framework": "^10.0"
   },
   "require-dev": {
