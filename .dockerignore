@@ -1,0 +1,7 @@
+vendor/
+node_modules/
+frontend/dist/
+lollipops.af
+Scan2026-05-06_210634.af
+Scan2026-05-06_210634.bmp
+.env
